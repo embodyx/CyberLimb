@@ -12,7 +12,7 @@
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
   <depend>cv_bridge</depend>
-  <depend>interbotix_perception_modules</depend>
+  <depend>interbotix_perception_toolbox</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

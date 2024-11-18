@@ -1,0 +1,8 @@
+# Parameters for processing_decision_node
+processing_decision_node:
+  ros__parameters:
+    camera_topic: "/camera/image_raw"
+    action_topic: "/openvla_action"
+    instruction_topic: "/instruction"
+    device: "cuda:0"
+    perception_module_config: "config/interbotix_params.yaml"

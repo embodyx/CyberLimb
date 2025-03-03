@@ -1,0 +1,7 @@
+# Parameters for sensory_input_node
+sensory_input_node:
+  ros__parameters:
+    camera_width: 1280
+    camera_height: 720
+    camera_fps: 30
+    publish_rate: 10.0

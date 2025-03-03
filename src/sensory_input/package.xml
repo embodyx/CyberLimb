@@ -1,0 +1,17 @@
+<package format="2">
+  <name>sensory_input</name>
+  <version>0.0.0</version>
+  <description>ROS 2 package for sensory input layer</description>
+  <maintainer email="your.email@example.com">Your Name</maintainer>
+  <license>TODO: License declaration</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

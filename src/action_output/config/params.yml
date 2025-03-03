@@ -1,0 +1,4 @@
+# Parameters for action_output_node
+action_output_node:
+  ros__parameters:
+    action_topic: "/openvla_action"

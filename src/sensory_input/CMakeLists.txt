@@ -1,15 +1,13 @@
 cmake_minimum_required(VERSION 3.5)
-project(processing_decision)
+project(sensory_input)
 
 find_package(ament_cmake REQUIRED)
 find_package(rclpy REQUIRED)
-
-ament_python_install_package(
-  src/processing_decision
-)
+find_package(sensor_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 
 install(PROGRAMS
-  src/processing_decision/processing_decision_node.py
+  src/sensory_input/sensory_input_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -1,148 +1,139 @@
 #!/usr/bin/env python3
-"""ROS2 node for controlling the WidowX robot arm based on received actions."""
-# pylint: disable=assigning-non-slot,no-member
+"""ROS 2 node – drive WidowX-250S from OpenVLA 7-D action vectors.
 
-from typing import List, Optional
+▪ Uses tf2 if a camera→base_link transform is on the tree.  
+▪ Otherwise loads the static rotation from static_transforms.yaml.  
+▪ Properly inverts that rotation (camera → base) before applying deltas.
+"""
 
-import re
-import rclpy  # type: ignore
-from rclpy.node import Node  # type: ignore
-from std_msgs.msg import String  # type: ignore
-from interbotix_xs_modules.xs_robot.arm import InterbotixManipulatorXS  # type: ignore
+import json, os, time, yaml
+from typing import Optional
+
+import numpy as np
+from scipy.spatial.transform import Rotation as R
+
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from interbotix_xs_modules.xs_robot.arm import InterbotixManipulatorXS
+
+from tf2_ros import (Buffer, TransformListener, LookupException,
+                     TimeoutException, TransformException)
+import tf_transformations as tft
+from ament_index_python.packages import get_package_share_directory
 
 
 class ActionOutputNode(Node):
-    """Node for executing robot arm actions based on received commands."""
+    CAM_FRAME  = "camera_color_optical_frame"
+    BASE_FRAME = "wx250s/base_link"
 
+    # ───────────────────────────────────────────────────────────────
     def __init__(self) -> None:
-        """Initialize the node, set up robot arm and subscribers."""
         super().__init__("action_output_node")
 
-        # Declare and get parameters
+        # parameters
         self.declare_parameter("action_topic", "/openvla_action")
-        
-        action_topic = self.get_parameter("action_topic").value
+        self.declare_parameter("robot_name",   "wx250s")
+        topic      = self.get_parameter("action_topic").value
+        robot_name = self.get_parameter("robot_name").value
 
-        # Use parameters for subscriptions/publishers
-        self.subscription = self.create_subscription(
-            String, action_topic, self.execute_action, 10
+        # tf2
+        self.tf_buf = Buffer(rclpy.duration.Duration(seconds=5))
+        self.tf_lis = TransformListener(self.tf_buf, self, spin_thread=True)
+
+        # YAML fallback
+        self.R_yaml = self._load_yaml_rotation()
+
+        # arm driver (positional args: model, robot_name)
+        self.arm = InterbotixManipulatorXS(
+            robot_model="wx250s",
+            robot_name=robot_name,
+            group_name="arm",
+            gripper_name="gripper"
         )
-        self.publisher = self.create_publisher(String, action_topic, 10)
 
-        # Initialize the InterbotixManipulatorXS object for the WidowX arm
+        self.arm.arm.go_to_home_pose()
+        self.gripper_closed = False
+        self.get_logger().info("Arm ready.")
+
+        # subscriber
+        self.create_subscription(String, topic, self.execute_action, 10)
+
+    # ───────────────────────────────────────────────────────────────
+    def _load_yaml_rotation(self) -> np.ndarray:
+        """Return 3×3 rotation matrix R_cam→base from static_transforms.yaml."""
+        pkg  = get_package_share_directory("interbotix_xsarm_perception")
+        path = os.path.join(pkg, "config", "static_transforms.yaml")
+        with open(path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+
+        transforms = data["transforms"] if isinstance(data, dict) else data
+        for tr in transforms:
+            if tr["frame_id"] == self.CAM_FRAME and tr["child_frame_id"] == self.BASE_FRAME:
+                q = [tr["qx"], tr["qy"], tr["qz"], tr["qw"]]
+                return R.from_quat(q).as_matrix().T   # transpose = invert
+        raise RuntimeError("camera→base rotation not found in YAML")
+
+    # ───────────────────────────────────────────────────────────────
+    def cam_delta_to_base(self, dx: float, dy: float, dz: float) -> np.ndarray:
+        """Rotate (dx,dy,dz) from camera to base frame; fall back to YAML."""
         try:
-            self.arm = InterbotixManipulatorXS("wx250s", "arm", "gripper")
-            self.get_logger().info('Successfully connected to WX250S robot')
-        except Exception as e:
-            self.get_logger().error(f'Failed to connect to robot: {str(e)}')
-            raise
+            tr = self.tf_buf.lookup_transform(
+                self.BASE_FRAME, self.CAM_FRAME, rclpy.time.Time(),
+                timeout=rclpy.duration.Duration(seconds=0.2))
+            T    = tft.compose_matrix(
+                      translate=(tr.transform.translation.x,
+                                 tr.transform.translation.y,
+                                 tr.transform.translation.z),
+                      angles=tft.euler_from_quaternion(
+                                 [tr.transform.rotation.x,
+                                  tr.transform.rotation.y,
+                                  tr.transform.rotation.z,
+                                  tr.transform.rotation.w]))
+            R_cb = T[:3, :3].T        # invert rotation: camera→base
+        except TransformException:
+            R_cb = self.R_yaml         # static fallback
 
-        # Define home position
-        self.home_position = [0.0, 0.0, 0.2]
+        return R_cb @ np.array([dx, dy, dz])
 
-        # Move to home position at startup
-        self.arm.go_to_sleep_pose()  # type: ignore[attr-defined]
-        self.get_logger().info("Robot initialized to sleep position")
-
-        self.get_logger().info("Action Output Node has been started.")
-
+    # ───────────────────────────────────────────────────────────────
     def execute_action(self, msg: String) -> None:
-        """Execute the received action command."""
-        self.get_logger().info(f"Executing action: {msg.data}")
-        action = msg.data.lower()
-
         try:
-            if "move_to_position" in action or "move to position" in action:
-                position = self.extract_position(action)
-                if position:
-                    self.move_to_position(position)
-                else:
-                    self.get_logger().warn(
-                        "Could not extract valid position from action"
-                    )
+            vec = json.loads(msg.data)
+            if not (isinstance(vec, list) and len(vec) == 7):
+                return
+            dx, dy, dz, droll, dpitch, dyaw, g = vec
+            if all(abs(v) < 1.5e-3 for v in vec[:-1]):
+                return
 
-            elif any(
-                cmd in action for cmd in ["grip", "close gripper", "grab", "pick"]
-            ):
-                self.grip()
+            time.sleep(0.5)                          # settle previous move
+            ee_T = self.arm.arm.get_ee_pose()
+            pos  = ee_T[:3, 3]
+            roll, pitch, yaw = R.from_matrix(ee_T[:3, :3]).as_euler("xyz")
 
-            elif any(
-                cmd in action for cmd in ["release", "open gripper", "let go", "drop"]
-            ):
-                self.release()
+            dpos = self.cam_delta_to_base(dx, dy, dz)
 
-            elif any(cmd in action for cmd in ["return_to_home", "home", "sleep"]):
-                self.return_to_home()
-
-            else:
-                self.get_logger().warn(f"Unknown action: {action}")
-
-        except (RuntimeError, ValueError) as e:
-            self.get_logger().error(f"Error executing action: {str(e)}")
-
-    def extract_position(self, action: str) -> Optional[List[float]]:
-        """Extract position coordinates from action text."""
-        try:
-            coords = re.findall(r"[-+]?\d*\.\d+|\d+", action)
-
-            if len(coords) >= 3:
-                x = float(coords[0])
-                y = float(coords[1])
-                z = float(coords[2])
-
-                # Apply safety limits
-                x = max(-0.5, min(0.5, x))
-                y = max(-0.5, min(0.5, y))
-                z = max(0.05, min(0.4, z))
-
-                return [x, y, z]
-
-            self.get_logger().warn(f"Could not find 3 coordinates in: {action}")
-            return None
-
-        except (ValueError, IndexError) as e:
-            self.get_logger().error(f"Error extracting position: {str(e)}")
-            return None
-
-    def move_to_position(self, position: List[float]) -> None:
-        """Move the robot arm to the specified position."""
-        self.get_logger().info(f"Moving to position {position}")
-        try:
-            self.arm.set_ee_pose_components(  # type: ignore[attr-defined]
-                x=position[0], y=position[1], z=position[2], moving_time=2.0
+            tgt = dict(
+                x=pos[0] + dpos[0],
+                y=pos[1] + dpos[1],
+                z=pos[2] + dpos[2],
+                roll=roll  + droll,
+                pitch=pitch + dpitch,
+                yaw=yaw   + dyaw,
             )
-            self.get_logger().info(f"Moved to position {position}")
-        except RuntimeError as e:
-            self.get_logger().error(f"Failed to move to position: {str(e)}")
+            self.arm.arm.set_ee_pose_components(**tgt)
 
-    def grip(self) -> None:
-        """Close the gripper."""
-        try:
-            self.arm.gripper.grasp(2.0)  # type: ignore[attr-defined]
-            self.get_logger().info("Gripper closed")
-        except RuntimeError as e:
-            self.get_logger().error(f"Failed to grip: {str(e)}")
+            # gripper
+            if g >= 0.5 and not self.gripper_closed:
+                self.arm.gripper.grasp(1.0); self.gripper_closed = True
+            elif g < 0.5 and self.gripper_closed:
+                self.arm.gripper.release(0.0); self.gripper_closed = False
 
-    def release(self) -> None:
-        """Open the gripper."""
-        try:
-            self.arm.gripper.release(2.0)  # type: ignore[attr-defined]
-            self.get_logger().info("Gripper opened")
-        except RuntimeError as e:
-            self.get_logger().error(f"Failed to release: {str(e)}")
+        except Exception as e:                       # broad catch for runtime
+            self.get_logger().error(f"Execution error: {e}")
 
-    def return_to_home(self) -> None:
-        """Return the robot to home/sleep position."""
-        try:
-            self.get_logger().info("Returning to home position")
-            self.arm.go_to_sleep_pose()  # type: ignore[attr-defined]
-            self.get_logger().info("Robot returned to home position")
-        except RuntimeError as e:
-            self.get_logger().error(f"Failed to return to home: {str(e)}")
-
-
+# ------------------------------------------------------------------
 def main(args: Optional[str] = None) -> None:
-    """Initialize and run the action output node."""
     rclpy.init(args=args)
     node = ActionOutputNode()
     rclpy.spin(node)

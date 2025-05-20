@@ -1,1 +1,14 @@
+src/build/
+src/install/
+src/log/
+/build/
+/install/
+/log/
+
+# Python Scripts compiled as bytecode
+__pycache__/
+
+# Ignore macOS system files
+.DS_Store
+
 id_rsa*

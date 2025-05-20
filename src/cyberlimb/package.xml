@@ -1,0 +1,21 @@
+<package format="2">
+  <name>cyberlimb</name>
+  <version>0.0.0</version>
+  <description>ROS 2 package for cyberlimb</description>
+  <maintainer email="jakek927@uw.edu">Jake Kemple</maintainer>
+  <license>TODO: License declaration</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>action_output</exec_depend>
+  <exec_depend>processing_decision</exec_depend>
+  <exec_depend>sensory_input</exec_depend>
+
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

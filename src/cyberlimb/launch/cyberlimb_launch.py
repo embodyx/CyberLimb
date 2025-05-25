@@ -43,8 +43,10 @@ def generate_launch_description() -> LaunchDescription:
             os.path.join(interbotix_dir, 'launch', 'xsarm_control.launch.py')
         ),
         launch_arguments={
+            'robot_name': 'wx250s',
             'robot_model': 'wx250s',
             'use_sim': 'false',
+            'load_configs': 'false',
         }.items()
     )
 

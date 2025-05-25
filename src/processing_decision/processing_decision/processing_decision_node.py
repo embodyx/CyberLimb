@@ -24,11 +24,12 @@ class ProcessingDecisionNode(Node):
         super().__init__("processing_decision_node")
 
         # ------------ Parameters ------------
-        self.declare_parameter("camera_topic", "/camera/image_raw")
+        self.declare_parameter("camera_topic", "/camera/image_raw") # From sensory_input node
+        # self.declare_parameter("camera_topic", "/camera/camera/color/image_raw") # From Remote Nitro Laptop
         self.declare_parameter("action_topic", "/openvla_action")
         self.declare_parameter("instruction_topic", "/instruction")
         self.declare_parameter("device", "cuda:0")
-        self.declare_parameter("inference_interval", 1.0)
+        self.declare_parameter("inference_interval", 2)
 
         camera_topic      = self.get_parameter("camera_topic").value
         action_topic      = self.get_parameter("action_topic").value

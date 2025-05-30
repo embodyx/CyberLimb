@@ -1,6 +1,7 @@
-# CyberLimb: Vision-Language-Action (VLA) Robotic System Implementation
+# CyberLimb: A VLA-based Robotic System Implementation
 
-Experiment code for Jake Kemple's UW Master's Thesis  
+Experiment code for Jake Kemple's UW Master's Thesis
+
 **"Evaluating Vision-Language-Action Models in Robotic Manipulation: A Comparative Study against Deterministic Perception and Planning Methods"**  
 📄 **[Thesis PDF – placeholder link]**
 

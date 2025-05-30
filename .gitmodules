@@ -1,0 +1,6 @@
+[submodule "openvla"]
+	path = openvla
+	url = https://github.com/jakekemple/openvla
+[submodule "bridge_data_robot"]
+	path = bridge_data_robot
+	url = https://github.com/jakekemple/bridge_data_robot

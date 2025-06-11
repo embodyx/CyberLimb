@@ -4,7 +4,7 @@ Experiment code for Jake Kemple's UW Master's Thesis:
 
 **"_Evaluating Vision-Language-Action Models in Robotic Manipulation: Performance, Implementation, and Comparison with Deterministic Systems_"**  
 
-📄 [Defense Presentation Slides w/ Video Clips](https://docs.google.com/presentation/d/1ueZkYw0638_mXNqgWYmY4bsO7ufsI6I4i-9ZU_T4mS0/edit?slide=id.g3611437e6de_0_1377#slide=id.g3611437e6de_0_1377)
+📄 [Defense Presentation Slides w/ Video Clips](https://docs.google.com/presentation/d/1ueZkYw0638_mXNqgWYmY4bsO7ufsI6I4i-9ZU_T4mS0/edit?usp=sharing)
 
 📄 **[Thesis PDF – placeholder link]**
 

@@ -6,7 +6,7 @@ Experiment code for Jake Kemple's UW Master's Thesis:
 
 📄 [Defense Presentation Slides w/ Video Clips](https://docs.google.com/presentation/d/1ueZkYw0638_mXNqgWYmY4bsO7ufsI6I4i-9ZU_T4mS0/edit?usp=sharing)
 
-📄 **[Thesis PDF – placeholder link]**
+📄 [Thesis Paper PDF](https://drive.google.com/file/d/15EkBcMYAEKk2mtwHfVwkD7fEKKC4VoIb/view?usp=drive_link)
 
 ---
 

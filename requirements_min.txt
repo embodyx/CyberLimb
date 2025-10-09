@@ -1,0 +1,20 @@
+opencv-python==4.12.0.88
+requests==2.32.5
+draccus==0.11.5
+imageio==2.37.0
+tensorflow==2.15.0
+torch==2.8.0
+funcsigs==1.0.2
+-e git+https://github.com/youliangtan/edgeml.git@b4b8495b489e7c973187742d2f2fe9aa016d9aca#egg=edgeml
+transformers==4.57.0
+rich==14.1.0
+timm==1.0.20
+-e git+https://github.com/kvablack/dlimp.git@5edaa4691567873d495633f2708982b42edf1972#egg=dlimp
+tensorflow-graphics==2021.12.3
+moviepy==1.0.3
+pyquaternion==0.9.9
+numpy==1.26.4.
+transforms3d==0.4.2
+modern-robotics==1.1.1
+gym==0.26.2
+scikit-image==0.25.2
